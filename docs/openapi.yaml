@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: Reto de matrices
+  version: 1.0.0
+  description: API Go (orquestación) y API Node (estadísticas). El mismo JWT vale en las dos.
+servers:
+  - url: http://localhost:8080
+    description: API Go
+  - url: http://localhost:3000
+    description: API Node
+paths:
+  /health:
+    get:
+      summary: Estado del proceso
+      security: []
+      responses:
+        "200":
+          description: El proceso responde
+  /v1/auth/login:
+    post:
+      summary: Emite un JWT de demostración
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expiresIn: { type: integer }
+        "400":
+          description: El cuerpo no es JSON válido
+        "401":
+          description: Credenciales inválidas
+        "429":
+          description: Demasiados intentos de ingreso desde la misma IP (10 cada 15 minutos)
+          headers:
+            Retry-After:
+              description: Segundos hasta que se puede reintentar
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: demasiados intentos de ingreso, intenta más tarde
+  /v1/matrices/process:
+    post:
+      summary: Rota la matriz, calcula QR y pide estadísticas a Node
+      description: Solo existe en la API Go.
+      servers:
+        - url: http://localhost:8080
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [matrix]
+              properties:
+                matrix:
+                  type: array
+                  items:
+                    type: array
+                    items: { type: number }
+            example:
+              matrix: [[1, 2, 3], [4, 5, 6]]
+      responses:
+        "200":
+          description: Resultado combinado (rotación, factorización QR y estadísticas de Node)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessMatrixResponse"
+        "400":
+          description: La matriz no es rectangular, está vacía o excede 250x250
+        "401":
+          description: Falta el token o no es válido
+        "502":
+          description: Node no respondió
+  /v1/statistics:
+    post:
+      summary: Estadísticas sobre una o varias matrices
+      description: Solo existe en la API Node.
+      servers:
+        - url: http://localhost:3000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [matrices]
+              properties:
+                matrices:
+                  type: array
+                  items:
+                    type: object
+                    required: [values]
+                    properties:
+                      name: { type: string }
+                      values:
+                        $ref: "#/components/schemas/Matrix2D"
+      responses:
+        "200":
+          description: Máximo, mínimo, promedio, suma y verificación de matriz diagonal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatisticsResult"
+        "400":
+          description: Entrada inválida
+        "401":
+          description: Falta el token o no es válido
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Matrix2D:
+      type: array
+      items:
+        type: array
+        items:
+          type: number
+    MatrixDetail:
+      type: object
+      required: [name, isDiagonal, rows, cols]
+      properties:
+        name: { type: string }
+        isDiagonal: { type: boolean }
+        rows: { type: integer }
+        cols: { type: integer }
+    StatisticsResult:
+      type: object
+      required: [max, min, average, sum, hasDiagonalMatrix, matrices]
+      properties:
+        max: { type: number }
+        min: { type: number }
+        average: { type: number }
+        sum: { type: number }
+        hasDiagonalMatrix: { type: boolean }
+        matrices:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatrixDetail"
+    QRResult:
+      type: object
+      required: [q, r, reconstructionError]
+      properties:
+        q:
+          $ref: "#/components/schemas/Matrix2D"
+        r:
+          $ref: "#/components/schemas/Matrix2D"
+        reconstructionError:
+          type: number
+    ProcessMatrixResponse:
+      type: object
+      required: [original, rotated, rotation, qr, statistics]
+      properties:
+        original:
+          $ref: "#/components/schemas/Matrix2D"
+        rotated:
+          $ref: "#/components/schemas/Matrix2D"
+        rotation:
+          type: string
+          example: 90_clockwise
+        qr:
+          $ref: "#/components/schemas/QRResult"
+        statistics:
+          $ref: "#/components/schemas/StatisticsResult"
+security:
+  - bearerAuth: []

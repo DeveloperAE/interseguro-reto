@@ -1,0 +1,71 @@
+# Blueprint de Render: tres web services Docker en el plan gratuito.
+# Automático: JWT_SECRET se genera en matrix-api-node (base64 de 256 bits) y matrix-api-go lo lee de ahí;
+# DEMO_PASSWORD se pide una vez al crear el blueprint y Go también lo lee de Node.
+# Manual tras el primer despliegue (Render no interpola variables ni comparte RENDER_EXTERNAL_URL entre servicios,
+# y un web service gratuito no recibe tráfico de la red privada):
+#   matrix-api-go   NODE_API_URL = https://<matrix-api-node>.onrender.com
+#   matrix-web      GO_API_URL   = https://<matrix-api-go>.onrender.com
+#   matrix-web      NODE_API_URL = https://<matrix-api-node>.onrender.com
+#   ambas APIs      CORS_ORIGIN  = https://<matrix-web>.onrender.com
+# Al crear se puede dejar CORS_ORIGIN en * y las URLs vacías; luego se completan y se redespliega.
+services:
+  - type: web
+    name: matrix-api-node
+    runtime: docker
+    dockerfilePath: ./api-node/Dockerfile
+    dockerContext: ./api-node
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_USERNAME
+        value: demo
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: TRUST_PROXY
+        value: "true"
+
+  - type: web
+    name: matrix-api-go
+    runtime: docker
+    dockerfilePath: ./api-go/Dockerfile
+    dockerContext: ./api-go
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        fromService:
+          name: matrix-api-node
+          type: web
+          envVarKey: JWT_SECRET
+      - key: DEMO_USERNAME
+        value: demo
+      - key: DEMO_PASSWORD
+        fromService:
+          name: matrix-api-node
+          type: web
+          envVarKey: DEMO_PASSWORD
+      - key: NODE_API_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: TRUST_PROXY
+        value: "true"
+
+  - type: web
+    name: matrix-web
+    runtime: docker
+    dockerfilePath: ./web/Dockerfile
+    dockerContext: ./web
+    plan: free
+    region: oregon
+    envVars:
+      - key: GO_API_URL
+        sync: false
+      - key: NODE_API_URL
+        sync: false
