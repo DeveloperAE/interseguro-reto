@@ -4,10 +4,14 @@ info:
   version: 1.0.0
   description: API Go (orquestación) y API Node (estadísticas). El mismo JWT vale en las dos.
 servers:
+  - url: https://matrix-api-go-67me.onrender.com
+    description: api-go (process y login; health)
+  - url: https://matrix-api-node-39jd.onrender.com
+    description: api-node (statistics y login; health)
   - url: http://localhost:8080
-    description: API Go
+    description: localhost api-go (process y login; health)
   - url: http://localhost:3000
-    description: API Node
+    description: localhost api-node (statistics y login; health)
 paths:
   /health:
     get:
@@ -61,7 +65,10 @@ paths:
       summary: Rota la matriz, calcula QR y pide estadísticas a Node
       description: Solo existe en la API Go.
       servers:
+        - url: https://matrix-api-go-67me.onrender.com
+          description: api-go
         - url: http://localhost:8080
+          description: localhost
       requestBody:
         required: true
         content:
@@ -79,11 +86,21 @@ paths:
               matrix: [[1, 2, 3], [4, 5, 6]]
       responses:
         "200":
-          description: Resultado combinado (rotación, factorización QR y estadísticas de Node)
+          description: Rotación exacta [[4, 1], [5, 2], [6, 3]] (90_clockwise). reconstructionError es pequeño; statistics.sum y statistics.average incluyen rotated, q y r. En este ejemplo hasDiagonalMatrix es false.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProcessMatrixResponse"
+              example:
+                original: [[1, 2, 3], [4, 5, 6]]
+                rotated: [[4, 1], [5, 2], [6, 3]]
+                rotation: 90_clockwise
+                statistics:
+                  hasDiagonalMatrix: false
+                  matrices:
+                    - { name: rotated, isDiagonal: false, rows: 3, cols: 2 }
+                    - { name: q, isDiagonal: false, rows: 2, cols: 2 }
+                    - { name: r, isDiagonal: false, rows: 2, cols: 3 }
         "400":
           description: La matriz no es rectangular, está vacía o excede 250x250
         "401":
@@ -95,7 +112,10 @@ paths:
       summary: Estadísticas sobre una o varias matrices
       description: Solo existe en la API Node.
       servers:
+        - url: https://matrix-api-node-39jd.onrender.com
+          description: api-node
         - url: http://localhost:3000
+          description: localhost
       requestBody:
         required: true
         content:

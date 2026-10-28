@@ -12,7 +12,7 @@ No es una plataforma de microservicios. La justificación está en [docs/decisio
 | `api-node` | Express (Arquitectura Hexagonal). Máximo, mínimo, promedio, suma y verificación de si alguna matriz es diagonal. |
 | `web` | Cliente Vite + React. Consulta las dos APIs. |
 
-Ejemplo: `[[1, 2, 3], [4, 5, 6]]` se rota a `[[4, 1], [5, 2], [6, 3]]`. La suma es 21, el promedio es 3.5 y la matriz rotada no es diagonal.
+Ejemplo: `[[1, 2, 3], [4, 5, 6]]` se rota a `[[4, 1], [5, 2], [6, 3]]` (`90_clockwise`). La suma global incluye Q y R y por eso no es 21, y `hasDiagonalMatrix` es false; en `[[2, 0, 0], [0, -5, 0], [0, 0, 9]]` es true (la rotada no es diagonal; Q y R sí).
 
 ## Patrones de Arquitectura y Diseño Aplicados
 
@@ -170,24 +170,27 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/matrices/process -H
    Las URLs no deben terminar en `/` (forma correcta: `https://<servicio>.onrender.com`). El frontend tolera una barra final, pero documéntalas sin ella.
 
    Guarda con redeploy. Go llama a Node por su URL pública: en el plan gratuito un web service no recibe tráfico de la red privada.
-5. Verifica:
-
-   ```powershell
-   Invoke-RestMethod https://<matrix-api-go>.onrender.com/health
-   Invoke-RestMethod https://<matrix-api-node>.onrender.com/health
-   $env:GO_API_URL = "https://<matrix-api-go>.onrender.com"
-   $env:NODE_API_URL = "https://<matrix-api-node>.onrender.com"
-   $env:DEMO_PASSWORD = "demo123"
-   node tests/integration.mjs
-   ```
-
-   Luego abre la URL de `matrix-web` e ingresa con `demo` / `demo123`.
 
 `TRUST_PROXY=true` está activo solo en Render, para que el límite de login use la IP de `X-Forwarded-For` y no la del proxy (ver [docs/decisiones.md](docs/decisiones.md)).
 
-En el plan gratuito los servicios se duermen tras unos 15 minutos sin tráfico y el siguiente acceso tarda alrededor de un minuto. Abre el frontend y los dos `/health` antes de compartir el enlace.
+## Probar lo desplegado
 
-Para la entrega: enlace del repositorio, URL de `matrix-web` y las credenciales `demo` / `demo123`.
+El frontend es la prueba visual: https://matrix-web-albq.onrender.com (`demo` / `demo123`).
+
+- Go: https://matrix-api-go-67me.onrender.com
+- Node: https://matrix-api-node-39jd.onrender.com
+
+```powershell
+$login = Invoke-RestMethod -Method Post -Uri https://matrix-api-go-67me.onrender.com/v1/auth/login -ContentType "application/json" -Body '{"username":"demo","password":"demo123"}'
+$headers = @{ Authorization = "Bearer $($login.token)" }
+Invoke-RestMethod -Method Post -Uri https://matrix-api-go-67me.onrender.com/v1/matrices/process -Headers $headers -ContentType "application/json" -Body '{"matrix":[[1,2,3],[4,5,6]]}'
+```
+
+El plan gratuito duerme los servicios; el primer `GET /health` puede tardar cerca de un minuto. Si `process` responde `502`, espera y reintenta `GET /health` de Go y de Node.
+
+`NODE_API_URL` y `CORS_ORIGIN` van sin barra final: si `NODE_API_URL` está vacía o termina en `/`, `process` responde `502`; `CORS_ORIGIN` debe ser `https://matrix-web-albq.onrender.com`. Si CORS está mal, el navegador falla y la llamada directa sigue funcionando.
+
+Para la entrega: enlace del repositorio, https://matrix-web-albq.onrender.com y las credenciales `demo` / `demo123`.
 
 ## Endpoints
 
