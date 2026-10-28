@@ -167,6 +167,8 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/matrices/process -H
    | `matrix-web` | `NODE_API_URL` | URL de `matrix-api-node` |
    | las dos APIs | `CORS_ORIGIN` | URL de `matrix-web` |
 
+   Las URLs no deben terminar en `/` (forma correcta: `https://<servicio>.onrender.com`). El frontend tolera una barra final, pero documéntalas sin ella.
+
    Guarda con redeploy. Go llama a Node por su URL pública: en el plan gratuito un web service no recibe tráfico de la red privada.
 5. Verifica:
 

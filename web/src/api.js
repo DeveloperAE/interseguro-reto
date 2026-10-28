@@ -1,8 +1,12 @@
+function trimSlash(url) {
+  return String(url).replace(/\/+$/, "");
+}
+
 export function apiConfig() {
   const config = window.__CONFIG__ ?? {};
   return {
-    goApiUrl: config.goApiUrl || "http://localhost:8080",
-    nodeApiUrl: config.nodeApiUrl || "http://localhost:3000",
+    goApiUrl: trimSlash(config.goApiUrl || "http://localhost:8080"),
+    nodeApiUrl: trimSlash(config.nodeApiUrl || "http://localhost:3000"),
   };
 }
 

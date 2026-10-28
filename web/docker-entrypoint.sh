@@ -4,6 +4,8 @@ set -eu
 PORT="${PORT:-8080}"
 GO_API_URL="${GO_API_URL:-http://localhost:8080}"
 NODE_API_URL="${NODE_API_URL:-http://localhost:3000}"
+GO_API_URL="${GO_API_URL%/}"
+NODE_API_URL="${NODE_API_URL%/}"
 
 escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
